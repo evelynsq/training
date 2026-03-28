@@ -6,14 +6,16 @@ process COWPY {
     container 'community.wave.seqera.io/library/cowpy:1.1.5--3db457ae1977a273'
 
     input:
-    path input_file
-    val character
+    tuple val(meta), path(input_file)
 
     output:
-    path "cowpy-${input_file}"
+    path "./${meta.lang_group}/${meta.lang}-${input_file}"
 
     script:
     """
-    cat ${input_file} | cowpy -c ${character} > cowpy-${input_file}
+    if [ ! -d "${meta.lang_group}" ]; then
+        mkdir ${meta.lang_group}
+    fi
+    cat ${input_file} | cowpy -c ${meta.character} > ./${meta.lang_group}/${meta.lang}-${input_file}
     """
 }
