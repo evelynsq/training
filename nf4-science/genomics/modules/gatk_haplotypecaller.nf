@@ -27,7 +27,5 @@ process GATK_HAPLOTYPECALLER {
         -O ${input_bam}.g.vcf \
         -L ${intervals_list} \
         -ERC GVCF
-
-
     """
 }
