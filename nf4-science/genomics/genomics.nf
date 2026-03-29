@@ -3,6 +3,7 @@
 // Module INCLUDE statements
 include { SAMTOOLS_INDEX } from './modules/samtools_index.nf'
 include { GATK_HAPLOTYPECALLER } from './modules/gatk_haplotypecaller.nf'
+include { GATK_JOINTGENOTYPING } from './modules/gatk_jointgenotyping.nf'
 
 /*
  * Pipeline parameters
@@ -10,6 +11,9 @@ include { GATK_HAPLOTYPECALLER } from './modules/gatk_haplotypecaller.nf'
 params {
     // primary input (file of input files, one per line)
     input: Path
+
+    // Base name for final output file
+    cohort_name: String
 
     // accessory files - BAM index, ref genome index, ref genome dictionary
     reference: Path
@@ -26,7 +30,6 @@ workflow {
         .splitCsv(header: true)
         .map { row -> file(row.reads_bam) }
 
-
     // Load the file paths for the accessory files (reference and intervals)
     ref_file = file(params.reference)
     ref_index_file = file(params.reference_index)
@@ -42,13 +45,27 @@ workflow {
         ref_dict_file,
         intervals_file
     )
+    // Collect variant calling outputs across samples
+    all_gvcfs_ch = GATK_HAPLOTYPECALLER.out.vcf.collect()
+    all_idxs_ch = GATK_HAPLOTYPECALLER.out.idx.collect()
+
+    GATK_JOINTGENOTYPING(
+        all_gvcfs_ch,
+        all_idxs_ch,
+        intervals_file,
+        params.cohort_name,
+        ref_file,
+        ref_index_file,
+        ref_dict_file
+    )
 
     publish:
     // Declare outputs to publish
     indexed_bam = SAMTOOLS_INDEX.out
-    vcf = GATK_HAPLOTYPECALLER.out.vcf
-    vcf_idx = GATK_HAPLOTYPECALLER.out.idx
-
+    gvcf = GATK_HAPLOTYPECALLER.out.vcf
+    gvcf_idx = GATK_HAPLOTYPECALLER.out.idx
+    joint_vcf = GATK_JOINTGENOTYPING.out.vcf
+    joint_vcf_idx = GATK_JOINTGENOTYPING.out.idx
 }
 
 output {
@@ -56,10 +73,16 @@ output {
     indexed_bam {
         path 'bam'
     }
-    vcf {
-        path 'vcf'
+    gvcf {
+        path 'gvcf'
     }
-    vcf_idx {
-        path 'vcf'
+    gvcf_idx {
+        path 'gvcf'
+    }
+    joint_vcf {
+        path '.'
+    }
+    joint_vcf_idx {
+        path '.'
     }
 }

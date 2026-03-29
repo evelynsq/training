@@ -5,25 +5,29 @@
  */
 process GATK_HAPLOTYPECALLER {
 
-    container "community.wave.seqera.io/library/gatk4:4.5.0.0--730ee8817e436867"
+
+    container 'community.wave.seqera.io/library/gatk4:4.5.0.0--730ee8817e436867'
 
     input:
-    tuple path(input_bam), path(input_bam_idx) // this makes sure that the BAM and BAM IDX travel together
+    tuple path(input_bam), path(input_bam_idx)
     path ref_fasta
     path ref_idx
     path ref_dict
     path intervals_list
 
     output:
-    path "${input_bam}.vcf", emit: vcf
-    path "${input_bam}.vcf.idx", emit: idx
+    path "${input_bam}.g.vcf", emit: vcf
+    path "${input_bam}.g.vcf.idx", emit: idx
 
     script:
     """
     gatk HaplotypeCaller \
         -R ${ref_fasta} \
         -I ${input_bam} \
-        -O ${input_bam}.vcf \
-        -L ${intervals_list}
+        -O ${input_bam}.g.vcf \
+        -L ${intervals_list} \
+        -ERC GVCF
+
+
     """
 }
