@@ -1,9 +1,9 @@
 #!/usr/bin/env nextflow
 
 // Module INCLUDE statements
-include { FASTQC } from './modules/fastqc.nf'
-include { TRIM_GALORE } from './modules/trim_galore.nf'
-include { HISAT2_ALIGN } from './modules/hisat2_align.nf'
+include { FASTQC } from './modules/fastqc_pe.nf'
+include { TRIM_GALORE } from './modules/trim_galore_pe.nf'
+include { HISAT2_ALIGN } from './modules/hisat2_align_pe.nf'
 include { MULTIQC } from './modules/multiqc.nf'
 
 /*
@@ -26,7 +26,7 @@ workflow {
     // Create input channel
     reads_ch = channel.fromPath(params.input)
         .splitCsv(header: true)
-        .map { row -> file(row.fastq_path) }
+        .map { row -> [file(row.fastq_1), file(row.fastq_2)] }
 
     // Initial quality control
     FASTQC(reads_ch)
@@ -35,14 +35,15 @@ workflow {
     TRIM_GALORE(reads_ch)
 
     // Alignment to a reference genome
-    HISAT2_ALIGN(TRIM_GALORE.out.trimmed_read, file(params.hisat2_index_zip))
+    HISAT2_ALIGN(TRIM_GALORE.out.trimmed_reads, file(params.hisat2_index_zip))
 
     // combine all the output channel logs/reports into one channel
     multiqc_files_ch = channel.empty().mix(
         FASTQC.out.zip,
         FASTQC.out.html,
         TRIM_GALORE.out.trimming_reports,
-        TRIM_GALORE.out.fastqc_reports,
+        TRIM_GALORE.out.fastqc_reports_1,
+        TRIM_GALORE.out.fastqc_reports_2,
         HISAT2_ALIGN.out.log
     )
     // collect all the logs before running multiqc
@@ -54,9 +55,10 @@ workflow {
     // Declare outputs to publish
     fastqc_zip = FASTQC.out.zip
     fastqc_html = FASTQC.out.html
-    trimmed_reads = TRIM_GALORE.out.trimmed_read
+    trimmed_reads = TRIM_GALORE.out.trimmed_reads
     trimming_reports = TRIM_GALORE.out.trimming_reports
-    trimming_fastqc = TRIM_GALORE.out.fastqc_reports
+    trimming_fastqc_1 = TRIM_GALORE.out.fastqc_reports_1
+    trimming_fastqc_2 = TRIM_GALORE.out.fastqc_reports_2
     bam = HISAT2_ALIGN.out.bam
     align_log = HISAT2_ALIGN.out.log
     multiqc_report = MULTIQC.out.report
@@ -77,7 +79,10 @@ output {
     trimming_reports {
         path 'trimming'
     }
-    trimming_fastqc {
+    trimming_fastqc_1 {
+        path 'trimming'
+    }
+    trimming_fastqc_2 {
         path 'trimming'
     }
     bam {
